@@ -1,5 +1,6 @@
 ﻿using Application.Services;
 using Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -10,7 +11,8 @@ public class ProductsController : ControllerBase
 {
     private readonly ProductService _service;
     public ProductsController(ProductService service) => _service = service;
-
+    
+    [Authorize]   
     [HttpGet]
     public Task<List<Product>> Get(CancellationToken ct) =>
         _service.GetAllAsync(ct);

@@ -3,11 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<User> Users => Set<User>();               // 👈 NECESARIO
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,6 +19,19 @@ public class AppDbContext : DbContext
             b.Property(x => x.Logo).HasMaxLength(255).IsRequired();
             b.Property(x => x.DateRelease).IsRequired();
             b.Property(x => x.DateRevision).IsRequired();
+        });
+
+        modelBuilder.Entity<User>(b =>
+        {
+            b.ToTable("Users");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Username).HasMaxLength(50).IsRequired();
+            b.HasIndex(x => x.Username).IsUnique();
+            b.Property(x => x.Email).HasMaxLength(120).IsRequired();
+            b.Property(x => x.PasswordHash).IsRequired();
+            b.Property(x => x.PasswordSalt).IsRequired();
+            b.Property(x => x.Role).HasMaxLength(20).HasDefaultValue("user");
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
         });
     }
 }
