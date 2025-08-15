@@ -2,6 +2,7 @@ using Application.Ports;
 using Application.Services;
 using Infrastructure.Persistence;
 using Infrastructure.Repositories;
+using Infrastructure.Services; // AuthService
 using Microsoft.EntityFrameworkCore;
 
 // 🔽 JWT & Swagger
@@ -13,23 +14,21 @@ using Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) DbContext (SQL Server)
+// 1) DbContext (SQL Server apuntando a InventarioDB)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// 2) DI (repos y servicios)
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
-builder.Services.AddScoped<ProductService>();
-builder.Services.AddScoped<IUserRepository, UserRepository>(); // ⬅️ FALTA
-builder.Services.AddScoped<AuthService>();                     // ⬅️ FALTA
-builder.Services.AddScoped<TokenService>();
+
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddScoped<IAuthService, AuthService>(); // ✅ Usa Usuario/Rol reales
+builder.Services.AddScoped<ITokenService, TokenService>(); // ✅ Genera JWT
 
 // 3) Controllers + Swagger (con JWT)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
-    o.SwaggerDoc("v1", new OpenApiInfo { Title = "BankTechTest API", Version = "v1" });
+    o.SwaggerDoc("v1", new OpenApiInfo { Title = "Inventario API", Version = "v1" });
 
     // 🔐 Soporte para "Authorize" con Bearer en Swagger
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -57,13 +56,17 @@ builder.Services.AddSwaggerGen(o =>
     });
 });
 
-// 4) CORS (Angular en 4200)
+// 4) CORS (Angular en 4200, React en 3000, agregar producción)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ng", policy =>
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod());
+        policy.WithOrigins(
+            "http://localhost:4200",
+            "http://localhost:3000"
+            // agregar aquí dominio en producción
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod());
 });
 
 // 5) JWT Auth
@@ -100,7 +103,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// ⬇️ Orden correcto
 app.UseAuthentication();
 app.UseAuthorization();
 
