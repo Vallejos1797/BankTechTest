@@ -3,6 +3,7 @@ using Domain.Entities;
 using System.Security.Cryptography;
 using System.Text;
 using Application.Ports;
+using Application.DTOs.Usuario;
 
 namespace Infrastructure.Services;
 
@@ -27,24 +28,36 @@ public class AuthService : IAuthService
         if (rol is null)
             throw new InvalidOperationException($"El rol '{rolNombre}' no existe.");
 
-        var usuario = new Usuario
+        // Usamos DTO porque así está definido el repo
+        var dto = new CreateUsuarioDto
         {
             Nombre = nombre,
             Email = email,
             PasswordHash = passwordHash,
-            RolId = rol.Id, // Asignar FK
-            Rol = rol       // Asignar entidad
+            RolId = rol.Id
         };
 
-        await _usuarioRepository.AddAsync(usuario, ct);
+        var id = await _usuarioRepository.CreateAsync(dto, ct);
 
-        return usuario.Id;
+        return id;
     }
-
 
     public async Task<Usuario?> GetByIdAsync(int id, CancellationToken ct)
     {
-        return await _usuarioRepository.GetByIdAsync(id, ct);
+        var dto = await _usuarioRepository.GetByIdAsync(id, ct);
+        if (dto == null) return null;
+
+        // Convertimos el DTO a entidad de dominio para mantener compatibilidad
+        return new Usuario
+        {
+            Id = dto.Id,
+            Nombre = dto.Nombre,
+            Email = dto.Email,
+            PasswordHash = "****", // no lo devuelve el SP
+            RolId = dto.RolId,
+            Rol = new Rol { Id = dto.RolId, Nombre = dto.RolNombre },
+            FechaCreacion = dto.FechaCreacion
+        };
     }
 
     public async Task<Usuario?> ValidateUserAsync(string nombre, string password, CancellationToken ct)

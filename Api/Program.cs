@@ -27,6 +27,9 @@ builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
 builder.Services.AddScoped<IProveedorRepository, ProveedorRepository>();
 builder.Services.AddScoped<IProductoProveedorRepository, ProductoProveedorRepository>(); // ✅ Nuevo
 builder.Services.AddScoped<ProveedorService>();
+builder.Services.AddScoped<ICompraRepository, CompraRepository>();
+builder.Services.AddScoped<CompraService>();
+builder.Services.AddScoped<UsuarioService>();
 // 3) Controllers + Swagger (con JWT)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
