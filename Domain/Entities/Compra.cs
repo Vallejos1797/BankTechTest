@@ -1,11 +1,16 @@
-﻿namespace Domain.Entities;
-
-public class Compra
+﻿namespace Domain.Entities
 {
-    public int Id { get; set; }
-    public int UsuarioId { get; set; }
-    public int ProductoId { get; set; }
-    public decimal PrecioCompra { get; set; }
-    public int Cantidad { get; set; }
-    public DateTime FechaCompra { get; set; }
+    public class Compra
+    {
+        public int Id { get; set; }
+        public int UsuarioId { get; set; }
+        public int ProductoId { get; set; }
+        public decimal PrecioCompra { get; set; }
+        public int Cantidad { get; set; }
+        public DateTime FechaCompra { get; set; }
+
+        // Navegación
+        public Usuario Usuario { get; set; } = null!;
+        public Producto Producto { get; set; } = null!;
+    }
 }

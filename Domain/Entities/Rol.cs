@@ -1,9 +1,11 @@
-﻿namespace Domain.Entities;
-
-public class Rol
+﻿namespace Domain.Entities
 {
-    public int Id { get; set; }
-    public string Nombre { get; set; } = string.Empty;
+    public class Rol
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = null!;
 
-    public ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();
+        // Relación con Usuarios
+        public ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();
+    }
 }

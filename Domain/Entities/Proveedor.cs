@@ -1,9 +1,10 @@
-﻿namespace Domain.Entities;
-
-public class Proveedor
+﻿namespace Domain.Entities
 {
-    public int Id { get; set; }
-    public string Nombre { get; set; } = string.Empty;
-    public string? Contacto { get; set; }
-    public string? Telefono { get; set; }
+    public class Proveedor
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = null!;
+        public string? Contacto { get; set; }
+        public string? Telefono { get; set; }
+    }
 }

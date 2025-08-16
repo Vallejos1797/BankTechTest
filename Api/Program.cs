@@ -18,11 +18,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-
+// 2) Repositorios y servicios
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>(); // ✅ Usa Usuario/Rol reales
 builder.Services.AddScoped<ITokenService, TokenService>(); // ✅ Genera JWT
-
+builder.Services.AddScoped<IProductRepository, ProductRepository>(); // ✅ Registro de repositorio de productos
+builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
 // 3) Controllers + Swagger (con JWT)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -57,17 +58,27 @@ builder.Services.AddSwaggerGen(o =>
 });
 
 // 4) CORS (Angular en 4200, React en 3000, agregar producción)
+// builder.Services.AddCors(options =>
+// {
+//     options.AddPolicy("ng", policy =>
+//         policy.WithOrigins(
+//             "http://localhost:4200",
+//             "http://localhost:3000"
+//             // agregar aquí dominio en producción
+//         )
+//         .AllowAnyHeader()
+//         .AllowAnyMethod());
+// });
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ng", policy =>
-        policy.WithOrigins(
-            "http://localhost:4200",
-            "http://localhost:3000"
-            // agregar aquí dominio en producción
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod());
+        policy
+            .AllowAnyOrigin()   // ✅ permite cualquier origen
+            .AllowAnyHeader()
+            .AllowAnyMethod());
 });
+
 
 // 5) JWT Auth
 var jwt = builder.Configuration.GetSection("Jwt");

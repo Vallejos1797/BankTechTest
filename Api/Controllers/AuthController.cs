@@ -45,10 +45,14 @@ namespace Api.Controllers
                 if (usuario is null)
                     return StatusCode(500, new { message = "No se pudo crear el usuario." });
 
-                var token = _tokenService.CreateToken(
-                    usuario,
-                    new[] { new Claim(ClaimTypes.Role, usuario.Rol.Nombre) }
-                );
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+                    new Claim(ClaimTypes.Name, usuario.Nombre),
+                    new Claim(ClaimTypes.Role, usuario.Rol.Nombre)
+                };
+
+                var token = _tokenService.CreateToken(usuario, claims);
 
                 return CreatedAtAction(nameof(Register), new AuthResponse(
                     token,
@@ -66,7 +70,7 @@ namespace Api.Controllers
                 return StatusCode(500, new { message = "Ocurrió un error interno." });
             }
         }
-
+        
         /// <summary>
         /// Autentica a un usuario y devuelve un JWT.
         /// </summary>
@@ -86,10 +90,15 @@ namespace Api.Controllers
                     return Unauthorized(new { message = "Credenciales inválidas" });
                 }
 
-                var token = _tokenService.CreateToken(
-                    usuario,
-                    new[] { new Claim(ClaimTypes.Role, usuario.Rol.Nombre) }
-                );
+                // 📌 Agregar Id y Nombre como claims
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+                    new Claim(ClaimTypes.Name, usuario.Nombre),
+                    new Claim(ClaimTypes.Role, usuario.Rol.Nombre)
+                };
+
+                var token = _tokenService.CreateToken(usuario, claims);
 
                 return Ok(new AuthResponse(
                     token,
