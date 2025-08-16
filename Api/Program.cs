@@ -24,6 +24,8 @@ builder.Services.AddScoped<IAuthService, AuthService>(); // ✅ Usa Usuario/Rol 
 builder.Services.AddScoped<ITokenService, TokenService>(); // ✅ Genera JWT
 builder.Services.AddScoped<IProductRepository, ProductRepository>(); // ✅ Registro de repositorio de productos
 builder.Services.AddScoped<IWishlistRepository, WishlistRepository>();
+builder.Services.AddScoped<IProveedorRepository, ProveedorRepository>();
+builder.Services.AddScoped<ProveedorService>();
 // 3) Controllers + Swagger (con JWT)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
