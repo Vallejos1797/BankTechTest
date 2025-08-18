@@ -3,47 +3,59 @@ using Domain.Entities;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.Repositories;
-
-public class ProductRepository : IProductRepository
+namespace Infrastructure.Repositories
 {
-    private readonly AppDbContext _db;
-    public ProductRepository(AppDbContext db) => _db = db;
-
-    public Task<List<Product>> GetAllAsync(CancellationToken ct) =>
-        _db.Products.FromSqlRaw("EXEC dbo.usp_Product_GetAll")
-            .AsNoTracking()
-            .ToListAsync(ct);
-
-    public async Task<Product?> GetByIdAsync(int id, CancellationToken ct)
+    public class ProductRepository : IProductRepository
     {
-        var rows = await _db.Products
-            .FromSqlInterpolated($"EXEC dbo.usp_Product_GetById @Id={id}")
-            .AsNoTracking()
-            .ToListAsync(ct);
-        return rows.FirstOrDefault();
+        private readonly AppDbContext _db;
+
+        public ProductRepository(AppDbContext db)
+        {
+            _db = db;
+        }
+
+        public Task<List<Producto>> GetAllAsync(CancellationToken ct) =>
+            _db.Productos
+                .FromSqlRaw("EXEC usp_Product_GetAll")
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+        public async Task<Producto?> GetByIdAsync(int id, CancellationToken ct)
+        {
+            var result = await _db.Productos
+                .FromSqlInterpolated($"EXEC usp_Product_GetById @Id={id}")
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            return result.FirstOrDefault();
+        }
+
+        public async Task<int> CreateAsync(Producto producto, CancellationToken ct)
+        {
+            var result = await _db.Database
+                .SqlQuery<int>($@"
+                    EXEC usp_Product_Create
+                        @Nombre={producto.Nombre},
+                        @Descripcion={producto.Descripcion},
+                        @ImagenUrl={producto.ImagenUrl}
+                ")
+                .ToListAsync(ct);
+
+            return result.Single();
+        }
+
+        public Task UpdateAsync(Producto producto, CancellationToken ct) =>
+            _db.Database.ExecuteSqlInterpolatedAsync($@"
+                EXEC usp_Product_Update
+                    @Id={producto.Id},
+                    @Nombre={producto.Nombre},
+                    @Descripcion={producto.Descripcion},
+                    @ImagenUrl={producto.ImagenUrl}
+            ", ct);
+
+        public Task DeleteAsync(int id, CancellationToken ct) =>
+            _db.Database.ExecuteSqlInterpolatedAsync($@"
+                EXEC usp_Product_Delete @Id={id}
+            ", ct);
     }
-
-    public async Task<int> CreateAsync(Product p, CancellationToken ct)
-    {
-        var ids = await _db.Database
-            .SqlQuery<int>($@"
-            EXEC dbo.usp_Product_Create
-                @Name={p.Name},
-                @Description={p.Description},
-                @Logo={p.Logo},
-                @DateRelease={p.DateRelease},
-                @DateRevision={p.DateRevision}")
-            .ToListAsync(ct);        // ⬅️ ejecuta el SQL
-        return ids.Single();         // ⬅️ composición en memoria (cliente)
-    }
-
-
-    public Task UpdateAsync(Product p, CancellationToken ct) =>
-        _db.Database.ExecuteSqlInterpolatedAsync(
-            $"EXEC dbo.usp_Product_Update @Id={p.Id}, @Name={p.Name}, @Description={p.Description}, @Logo={p.Logo}, @DateRelease={p.DateRelease}, @DateRevision={p.DateRevision}", ct);
-
-    public Task DeleteAsync(int id, CancellationToken ct) =>
-        _db.Database.ExecuteSqlInterpolatedAsync(
-            $"EXEC dbo.usp_Product_Delete @Id={id}", ct);
 }

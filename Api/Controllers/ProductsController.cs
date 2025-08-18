@@ -1,48 +1,69 @@
-﻿using Application.Services;
+﻿using Application.Ports;
 using Domain.Entities;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+// using Microsoft.AspNetCore.Authorization;
 
-namespace Api.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class ProductsController : ControllerBase
+namespace Api.Controllers
 {
-    private readonly ProductService _service;
-    public ProductsController(ProductService service) => _service = service;
-    
-    [Authorize]   
-    [HttpGet]
-    public Task<List<Product>> Get(CancellationToken ct) =>
-        _service.GetAllAsync(ct);
-
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<Product>> GetById(int id, CancellationToken ct)
+    [ApiController]
+    [Route("api/[controller]")]
+    // [Authorize]
+    public class ProductsController : ControllerBase
     {
-        var p = await _service.GetByIdAsync(id, ct);
-        return p is null ? NotFound() : Ok(p);
-    }
+        private readonly IProductRepository _productRepository;
 
-    [HttpPost]
-    public async Task<ActionResult<int>> Create([FromBody] Product p, CancellationToken ct)
-    {
-        var id = await _service.CreateAsync(p, ct);
-        return CreatedAtAction(nameof(GetById), new { id }, id);
-    }
+        public ProductsController(IProductRepository productRepository)
+        {
+            _productRepository = productRepository;
+        }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] Product p, CancellationToken ct)
-    {
-        if (id != p.Id) return BadRequest("Id de ruta y body no coinciden.");
-        await _service.UpdateAsync(p, ct);
-        return NoContent();
-    }
+        // GET: api/Products
+        [HttpGet]
+        public async Task<IActionResult> GetAll(CancellationToken ct)
+        {
+            var products = await _productRepository.GetAllAsync(ct);
+            return Ok(products);
+        }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id, CancellationToken ct)
-    {
-        await _service.DeleteAsync(id, ct);
-        return NoContent();
+        // GET: api/Products/5
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id, CancellationToken ct)
+        {
+            var product = await _productRepository.GetByIdAsync(id, ct);
+            if (product == null)
+                return NotFound(new { message = "Producto no encontrado" });
+
+            return Ok(product);
+        }
+
+        // POST: api/Products
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] Producto producto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var newId = await _productRepository.CreateAsync(producto, ct);
+            return CreatedAtAction(nameof(GetById), new { id = newId }, producto);
+        }
+
+        // PUT: api/Products/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] Producto producto, CancellationToken ct)
+        {
+            if (id != producto.Id)
+                return BadRequest(new { message = "El ID de la URL no coincide con el del producto" });
+
+            await _productRepository.UpdateAsync(producto, ct);
+            return NoContent();
+        }
+
+        // DELETE: api/Products/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id, CancellationToken ct)
+        {
+            await _productRepository.DeleteAsync(id, ct);
+            return NoContent();
+        }
     }
 }

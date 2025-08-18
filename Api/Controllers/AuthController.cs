@@ -1,51 +1,115 @@
 ﻿using Api.Contracts;
-using Api.Services;
 using Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace Api.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
+namespace Api.Controllers
 {
-    private readonly AuthService _auth;
-    private readonly TokenService _tokens;
-
-    public AuthController(AuthService auth, TokenService tokens)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
     {
-        _auth = auth; _tokens = tokens;
-    }
+        private readonly IAuthService _authService;
+        private readonly ITokenService _tokenService;
+        private readonly ILogger<AuthController> _logger;
 
-    [AllowAnonymous]
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest req, CancellationToken ct)
-    {
-        // valida mínimamente
-        if (string.IsNullOrWhiteSpace(req.Username) ||
-            string.IsNullOrWhiteSpace(req.Email) ||
-            string.IsNullOrWhiteSpace(req.Password))
-            return BadRequest("Username, email y password son obligatorios.");
+        public AuthController(IAuthService authService, ITokenService tokenService, ILogger<AuthController> logger)
+        {
+            _authService = authService;
+            _tokenService = tokenService;
+            _logger = logger;
+        }
 
-        var id = await _auth.RegisterAsync(req.Username.Trim(), req.Email.Trim(), req.Password, req.Role?.Trim() ?? "user", ct);
+        /// <summary>
+        /// Registra un nuevo usuario.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { message = "Datos de registro inválidos", errores = ModelState });
 
-        // tras registrar, puedes loguear automáticamente:
-        var user = await _auth.GetByIdAsync(id, ct)!;
-        var token = _tokens.CreateToken(user!, new[] { new Claim(ClaimTypes.Role, user!.Role) });
+            try
+            {
+                var userId = await _authService.RegisterAsync(
+                    request.Nombre.Trim(),
+                    request.Email.Trim(),
+                    request.Password,
+                    request.Role?.Trim() ?? "user",
+                    ct
+                );
 
-        return Created("", new AuthResponse(token, new UserResponse(user!.Id, user.Username, user.Email, user.Role)));
-    }
+                var usuario = await _authService.GetByIdAsync(userId, ct);
+                if (usuario is null)
+                    return StatusCode(500, new { message = "No se pudo crear el usuario." });
 
-    [AllowAnonymous]
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest req, CancellationToken ct)
-    {
-        var user = await _auth.ValidateUserAsync(req.Username, req.Password, ct);
-        if (user is null) return Unauthorized();
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+                    new Claim(ClaimTypes.Name, usuario.Nombre),
+                    new Claim(ClaimTypes.Role, usuario.Rol.Nombre)
+                };
 
-        var token = _tokens.CreateToken(user, new[] { new Claim(ClaimTypes.Role, user.Role) });
-        return Ok(new AuthResponse(token, new UserResponse(user.Id, user.Username, user.Email, user.Role)));
+                var token = _tokenService.CreateToken(usuario, claims);
+
+                return CreatedAtAction(nameof(Register), new AuthResponse(
+                    token,
+                    new UserResponse(usuario.Id, usuario.Nombre, usuario.Email, usuario.Rol.Nombre)
+                ));
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Error en registro");
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error inesperado en registro");
+                return StatusCode(500, new { message = "Ocurrió un error interno." });
+            }
+        }
+        
+        /// <summary>
+        /// Autentica a un usuario y devuelve un JWT.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { message = "Datos de login inválidos", errores = ModelState });
+
+            try
+            {
+                var usuario = await _authService.ValidateUserAsync(request.Nombre, request.Password, ct);
+                if (usuario is null)
+                {
+                    _logger.LogWarning("Intento de login fallido para usuario {Nombre}", request.Nombre);
+                    return Unauthorized(new { message = "Credenciales inválidas" });
+                }
+
+                // 📌 Agregar Id y Nombre como claims
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+                    new Claim(ClaimTypes.Name, usuario.Nombre),
+                    new Claim(ClaimTypes.Role, usuario.Rol.Nombre)
+                };
+
+                var token = _tokenService.CreateToken(usuario, claims);
+
+                return Ok(new AuthResponse(
+                    token,
+                    new UserResponse(usuario.Id, usuario.Nombre, usuario.Email, usuario.Rol.Nombre)
+                ));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error inesperado en login");
+                return StatusCode(500, new { message = "Ocurrió un error interno." });
+            }
+        }
     }
 }

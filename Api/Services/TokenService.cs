@@ -1,5 +1,5 @@
-﻿// Api/Services/TokenService.cs
-using Domain.Entities;                    // si quieres pasar el User completo
+﻿using Application.Services;
+using Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -8,64 +8,52 @@ using System.Text;
 
 namespace Api.Services;
 
-public sealed class TokenService
+public sealed class TokenService : ITokenService
 {
     private readonly IConfiguration _config;
-    public TokenService(IConfiguration config) => _config = config;
 
-    // Versión que recibe el usuario de dominio
-    public string CreateToken(User user, IEnumerable<Claim>? extraClaims = null)
+    public TokenService(IConfiguration config)
     {
-        var baseClaims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, user.Username),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.Username),
-            new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Role, user.Role ?? "user")
-        };
-
-        if (extraClaims is not null) baseClaims.AddRange(extraClaims);
-
-        return Create(baseClaims);
+        _config = config ?? throw new ArgumentNullException(nameof(config));
     }
 
-    // Versión compatible con tu firma anterior (por si no quieres referenciar Domain aquí)
-    public string CreateToken(string username, string? email = null, string role = "user", IEnumerable<Claim>? extraClaims = null)
+    public string CreateToken(Usuario usuario, IEnumerable<Claim>? extraClaims = null)
     {
-        var baseClaims = new List<Claim>
+        if (usuario is null)
+            throw new ArgumentNullException(nameof(usuario));
+
+        // 📌 Claims base del usuario
+        var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, username),
+            new(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()), // ✅ ahora sub = Id
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(ClaimTypes.Name, username),
-            new(ClaimTypes.Role, role)
+            new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),   // ✅ redundante pero consistente
+            new(ClaimTypes.Name, usuario.Nombre),
+            new(ClaimTypes.Email, usuario.Email),
+            new(ClaimTypes.Role, usuario.Rol?.Nombre ?? "comprador")
         };
-        if (!string.IsNullOrWhiteSpace(email))
-            baseClaims.Add(new Claim(ClaimTypes.Email, email));
 
-        if (extraClaims is not null) baseClaims.AddRange(extraClaims);
 
-        return Create(baseClaims);
-    }
+        // 📌 Claims adicionales
+        if (extraClaims != null)
+            claims.AddRange(extraClaims);
 
-    private string Create(IEnumerable<Claim> claims)
-    {
-        var issuer  = _config["Jwt:Issuer"]!;
-        var audience = _config["Jwt:Audience"]!;
-        var minutes = double.TryParse(_config["Jwt:ExpireMinutes"], out var m) ? m : 60d;
+        // 📌 Clave de seguridad
+        var secretKey = _config["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(secretKey))
+            throw new InvalidOperationException("La clave JWT (Jwt:Key) no está configurada.");
 
-        // La clave debe ser larga (>=32 chars). En prod guárdala en variables de entorno/KeyVault.
-        var keyBytes = Encoding.UTF8.GetBytes(_config["Jwt:Key"]!);
-        var key = new SymmetricSecurityKey(keyBytes);
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        // 📌 Configuración de expiración
+        var expireMinutes = double.TryParse(_config["Jwt:ExpireMinutes"], out var minutes) ? minutes : 60;
+
         var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
             claims: claims,
-            notBefore: DateTime.UtcNow,
-            expires: DateTime.UtcNow.AddMinutes(minutes),
+            expires: DateTime.UtcNow.AddMinutes(expireMinutes),
             signingCredentials: creds
         );
 
