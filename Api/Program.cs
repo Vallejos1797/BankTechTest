@@ -63,7 +63,7 @@ builder.Services.AddSwaggerGen(o =>
     });
 });
 
-// 4) CORS (Angular en 4200, React en 3000, producción)
+// 4) çCORS (Angular en 4200, React en 3000, producción)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ng", policy =>

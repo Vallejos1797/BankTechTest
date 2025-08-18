@@ -5,6 +5,7 @@
         public int Id { get; set; }
         public int ProductoId { get; set; }
         public string ProductoNombre { get; set; } = string.Empty;
+        public string ImagenUrl { get; set; } = string.Empty; // ✅ Nueva propiedad
         public int ProveedorId { get; set; }
         public string ProveedorNombre { get; set; } = string.Empty;
         public decimal Precio { get; set; }

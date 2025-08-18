@@ -12,8 +12,16 @@ namespace Application.Services
             _repo = repo;
         }
 
-        public Task<int> CreateAsync(CreateUsuarioDto dto, CancellationToken ct) =>
-            _repo.CreateAsync(dto, ct);
+        public async Task<int> CreateAsync(CreateUsuarioDto dto, CancellationToken ct)
+        {
+            // ⚡ Hashear antes de guardar
+            if (!string.IsNullOrEmpty(dto.PasswordHash))
+            {
+                dto.PasswordHash = PasswordService.HashPassword(dto.PasswordHash);
+            }
+
+            return await _repo.CreateAsync(dto, ct);
+        }
 
         public Task<List<UsuarioResponseDto>> GetAllAsync(CancellationToken ct) =>
             _repo.GetAllAsync(ct);

@@ -1,11 +1,13 @@
 ﻿using Application.Ports;
 using Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
+// using Microsoft.AspNetCore.Authorization;
 
 namespace Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    // [Authorize]
     public class ProductsController : ControllerBase
     {
         private readonly IProductRepository _productRepository;
